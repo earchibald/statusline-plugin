@@ -3,7 +3,8 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { render, RENDERERS, DEFAULT_CONFIG, usageScalar, scaleNum } = require('../bin/statusline.js');
+const os = require('node:os');
+const { render, RENDERERS, DEFAULT_CONFIG, usageScalar, scaleNum, briefCwd } = require('../bin/statusline.js');
 
 // Mirrors the real Claude Code stdin payload:
 // `context_window.current_usage` is an object, not a scalar.
@@ -173,6 +174,39 @@ check('text segment renders literal value', () => {
 check('cwd basename mode', () => {
   const out = render(FIXTURE, { separator: '', segments: [{ type: 'cwd', format: 'basename' }] });
   assert.equal(out, path.basename(process.cwd()));
+});
+
+check('briefCwd: simple two-part path under home', () => {
+  const dir = os.homedir() + '/Projects/claude-marketplace';
+  assert.equal(briefCwd(dir), '~/P/claude-marketplace');
+});
+
+check('briefCwd: deep path with dotfile component', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir), '~/P/t/.c/w/tmb-28');
+});
+
+check('briefCwd: bare home renders ~', () => {
+  assert.equal(briefCwd(os.homedir()), '~');
+});
+
+check('briefCwd: outside home keeps absolute prefix', () => {
+  assert.equal(briefCwd('/usr/local/share/man'), '/u/l/s/man');
+});
+
+check('briefCwd: single segment under home', () => {
+  assert.equal(briefCwd(os.homedir() + '/Documents'), '~/Documents');
+});
+
+check('briefCwd: dotfile leaf stays full', () => {
+  const dir = os.homedir() + '/Projects/foo/.gitignore';
+  assert.equal(briefCwd(dir), '~/P/f/.gitignore');
+});
+
+check('cwd brief format via render', () => {
+  const ctx = { workspace: { current_dir: os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28' } };
+  const out = render(ctx, { separator: '', segments: [{ type: 'cwd', format: 'brief' }] });
+  assert.equal(out, '~/P/t/.c/w/tmb-28');
 });
 
 check('cwd maxLen truncates from the left', () => {

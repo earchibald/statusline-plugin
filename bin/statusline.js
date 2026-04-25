@@ -81,6 +81,34 @@ function safe(fn, fallback) {
 // input-side fields is required to match the real fill.
 function num(x) { return typeof x === 'number' ? x : 0; }
 
+// Brief cwd formatter: abbreviate every intermediate path component to a
+// single (possibly dot-prefixed) char; keep the last component full.
+//   ~/Projects/claude-marketplace                       -> ~/P/claude-marketplace
+//   ~/Projects/tts-me-baby/.claude/worktrees/tmb-28     -> ~/P/t/.c/w/tmb-28
+// Rules per intermediate component:
+//   - empty (leading slash) -> empty (preserves leading "/" or "~/")
+//   - "~" -> "~"
+//   - starts with "."       -> "." + first non-dot char (".claude" -> ".c")
+//   - else                  -> first char ("Projects" -> "P")
+function abbrevPart(p) {
+  if (!p) return '';
+  if (p === '~') return p;
+  if (p[0] === '.') {
+    const rest = p.slice(1);
+    return rest ? '.' + rest[0] : '.';
+  }
+  return p[0];
+}
+function briefCwd(dir) {
+  const home = os.homedir();
+  const tildeified = dir === home ? '~' : (dir.startsWith(home + '/') ? '~' + dir.slice(home.length) : dir);
+  const parts = tildeified.split('/');
+  if (parts.length <= 1) return tildeified;
+  const last = parts[parts.length - 1];
+  const head = parts.slice(0, -1).map(abbrevPart);
+  return head.join('/') + '/' + last;
+}
+
 // Brief number formatter for context display.
 //   < 1k        -> "873"
 //   < 10k       -> "1.2k"
@@ -142,6 +170,7 @@ const RENDERERS = {
     let out;
     if (seg.format === 'basename') out = path.basename(dir);
     else if (seg.format === 'full') out = dir;
+    else if (seg.format === 'brief') out = briefCwd(dir);
     else out = dir.replace(os.homedir(), '~');
     if (seg.maxLen && out.length > seg.maxLen) {
       out = '…' + out.slice(-(seg.maxLen - 1));
@@ -255,4 +284,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, scaleNum };
+module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, scaleNum, briefCwd };
