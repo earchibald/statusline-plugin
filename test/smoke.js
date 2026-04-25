@@ -22,10 +22,12 @@ const FIXTURE = {
     context_window_size: 200000,
     used_percentage: 18.4,
     remaining_percentage: 81.6,
+    // Real cached-prompt shape: bulk lives in cache_read, input_tokens is the
+    // small new-turn delta. Sum (input + cache_read + cache_creation) = 36800.
     current_usage: {
-      input_tokens: 36800,
+      input_tokens: 1,
       output_tokens: 1200,
-      cache_read_input_tokens: 50000,
+      cache_read_input_tokens: 36799,
       cache_creation_input_tokens: 0
     }
   }
@@ -81,17 +83,39 @@ check('usageScalar: scalar number passes through', () => {
   assert.equal(usageScalar(36800), 36800);
 });
 
-check('usageScalar: object with input_tokens uses that field', () => {
-  assert.equal(usageScalar({ input_tokens: 36800, output_tokens: 1200 }), 36800);
+check('usageScalar: sums input + cache_read + cache_creation', () => {
+  const v = { input_tokens: 1, output_tokens: 999, cache_read_input_tokens: 100000, cache_creation_input_tokens: 5000 };
+  assert.equal(usageScalar(v), 105001);
 });
 
-check('usageScalar: object without input_tokens sums numeric fields', () => {
+check('usageScalar: cached prompt with tiny input does not return ~1', () => {
+  const v = { input_tokens: 1, cache_read_input_tokens: 147000, cache_creation_input_tokens: 0, output_tokens: 200 };
+  assert.equal(usageScalar(v), 147001, 'must reflect cache_read fill, not just input_tokens');
+});
+
+check('usageScalar: object without canonical fields sums numeric fallback', () => {
   assert.equal(usageScalar({ a: 100, b: 200, c: 'x' }), 300);
 });
 
 check('usageScalar: null/undefined return null', () => {
   assert.equal(usageScalar(null), null);
   assert.equal(usageScalar(undefined), null);
+});
+
+check('context absolute_percent uses percent×size fallback when current_usage missing', () => {
+  const ctx = { context_window: { context_window_size: 1000000, used_percentage: 15 } };
+  const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
+  assert.equal(out, '150000/1000000 (15%)');
+});
+
+check('regression: cached-prompt context fills correctly (was rendering 1/1000000)', () => {
+  const ctx = { context_window: {
+    context_window_size: 1000000,
+    used_percentage: 15,
+    current_usage: { input_tokens: 1, output_tokens: 200, cache_read_input_tokens: 147000, cache_creation_input_tokens: 0 }
+  }};
+  const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
+  assert.equal(out, '147001/1000000 (15%)');
 });
 
 check('regression: object current_usage no longer renders [object Object]', () => {

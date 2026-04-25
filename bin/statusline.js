@@ -73,14 +73,19 @@ function safe(fn, fallback) {
   try { const v = fn(); return v == null ? fallback : v; } catch { return fallback; }
 }
 
-// Real Claude Code stdin sends `context_window.current_usage` as an object
-// ({ input_tokens, output_tokens, cache_read_input_tokens, … }), not a scalar.
-// `input_tokens` is the canonical "what is filling the context window" number.
+// Real Claude Code stdin sends `context_window.current_usage` as an object:
+// { input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens }
+// The total context fill is input + cache_read + cache_creation. With cached
+// prompts, `input_tokens` alone is just the small new-turn delta (often ~1)
+// while cache_read holds the bulk of the conversation — so summing all three
+// input-side fields is required to match the real fill.
+function num(x) { return typeof x === 'number' ? x : 0; }
 function usageScalar(v) {
   if (v == null) return null;
   if (typeof v === 'number') return v;
   if (typeof v === 'object') {
-    if (typeof v.input_tokens === 'number') return v.input_tokens;
+    const fill = num(v.input_tokens) + num(v.cache_read_input_tokens) + num(v.cache_creation_input_tokens);
+    if (fill > 0) return fill;
     let sum = 0;
     let any = false;
     for (const k in v) if (typeof v[k] === 'number') { sum += v[k]; any = true; }
@@ -152,9 +157,13 @@ const RENDERERS = {
 
   context: (seg, ctx) => {
     const cw = ctx.context_window || {};
-    const used = usageScalar(cw.current_usage);
     const total = cw.context_window_size;
     const pct = cw.used_percentage;
+    let used = usageScalar(cw.current_usage);
+    // Fallback: derive from percent × total when current_usage is missing.
+    if ((used == null || used === 0) && typeof pct === 'number' && typeof total === 'number') {
+      used = Math.round((pct / 100) * total);
+    }
     if (seg.format === 'percent') {
       if (pct == null) return '';
       return Math.round(pct) + '%';
