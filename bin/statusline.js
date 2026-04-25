@@ -136,16 +136,24 @@ const RENDERERS = {
 
   context: (seg, ctx) => {
     const cw = ctx.context_window || {};
+    const used = cw.current_usage;
+    const total = cw.context_window_size;
+    const pct = cw.used_percentage;
     if (seg.format === 'percent') {
-      if (cw.used_percentage == null) return '';
-      return Math.round(cw.used_percentage) + '%';
+      if (pct == null) return '';
+      return Math.round(pct) + '%';
     }
     if (seg.format === 'remaining_percent') {
       if (cw.remaining_percentage == null) return '';
       return Math.round(cw.remaining_percentage) + '%';
     }
-    if (cw.current_usage == null) return '';
-    return cw.current_usage + '/' + (cw.context_window_size || 0);
+    if (seg.format === 'absolute_percent') {
+      if (used == null) return '';
+      const tail = pct == null ? '' : ' (' + Math.round(pct) + '%)';
+      return used + '/' + (total || 0) + tail;
+    }
+    if (used == null) return '';
+    return used + '/' + (total || 0);
   },
 
   cost: (seg, ctx) => {

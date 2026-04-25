@@ -64,7 +64,7 @@ Every segment has a `type` and shares these optional common fields:
 | `git_branch`    | `dirtySuffix` (default `*`)                              | current branch + suffix when dirty; empty outside a repo |
 | `time`          | `format`: `HH:mm` (default) \| `HH:mm:ss` \| `iso`       | local clock |
 | `tokens`        | `which`: `total` (default) \| `input` \| `output`        | session token counter |
-| `context`       | `format`: `percent` (default) \| `remaining_percent` \| `absolute` | context-window usage |
+| `context`       | `format`: `percent` (default) \| `remaining_percent` \| `absolute` \| `absolute_percent` | context-window usage; `absolute_percent` renders e.g. `36800/200000 (18%)` |
 | `cost`          | `unit`: `session` (default)                              | session spend in USD, `$0.00` shape |
 | `session`       | —                                                        | first 8 chars of `session_id` |
 | `output_style`  | —                                                        | active output style name |
@@ -103,6 +103,11 @@ Be additive when the user's request is ambiguous: ask which slot the new segment
 **"Show context usage as a percentage."**
 ```json
 { "type": "context", "format": "percent", "color": "yellow", "prefix": "ctx " }
+```
+
+**"Show context as absolute(percent)" — e.g. `ctx 36800/200000 (18%)`.**
+```json
+{ "type": "context", "format": "absolute_percent", "color": "yellow", "prefix": "ctx " }
 ```
 
 **"I want a tag in front."** Use a `text` segment first:

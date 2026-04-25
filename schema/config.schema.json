@@ -107,7 +107,7 @@
           "type": "object",
           "properties": {
             "type": { "const": "context" },
-            "format": { "enum": ["percent", "remaining_percent", "absolute"], "default": "percent" }
+            "format": { "enum": ["percent", "remaining_percent", "absolute", "absolute_percent"], "default": "percent" }
           },
           "required": ["type"]
         },

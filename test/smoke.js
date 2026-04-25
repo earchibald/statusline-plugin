@@ -57,6 +57,24 @@ check('default config includes context percent', () => {
   assert.ok(out.includes('18%') || out.includes('ctx 18'), 'expected ctx percent, got: ' + out);
 });
 
+check('context absolute_percent renders absolute and percent', () => {
+  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
+  assert.equal(out, '36800/200000 (18%)');
+});
+
+check('context absolute_percent gracefully omits percent when missing', () => {
+  const out = render(
+    { context_window: { current_usage: 100, context_window_size: 1000 } },
+    { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] }
+  );
+  assert.equal(out, '100/1000');
+});
+
+check('context absolute (existing) still works', () => {
+  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute' }] });
+  assert.equal(out, '36800/200000');
+});
+
 check('text segment renders literal value', () => {
   const out = render({}, { separator: '', segments: [{ type: 'text', value: 'hello' }] });
   assert.ok(out.includes('hello'));
