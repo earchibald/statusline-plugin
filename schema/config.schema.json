@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/earchibald/statusline-plugin/blob/main/schema/config.schema.json",
+  "title": "statusline-plugin config",
+  "description": "Configuration for the statusline-plugin Claude Code statusline runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "separator": {
+      "type": "string",
+      "default": " | ",
+      "description": "String inserted between rendered, non-empty segments."
+    },
+    "segments": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/segment" }
+    }
+  },
+  "required": ["segments"],
+  "definitions": {
+    "color": {
+      "type": "string",
+      "enum": [
+        "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "gray",
+        "brightRed", "brightGreen", "brightYellow", "brightBlue", "brightMagenta", "brightCyan", "brightWhite"
+      ]
+    },
+    "common": {
+      "type": "object",
+      "properties": {
+        "color": { "$ref": "#/definitions/color" },
+        "bold": { "type": "boolean" },
+        "dim": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "prefix": { "type": "string" },
+        "suffix": { "type": "string" },
+        "hideWhenEmpty": { "type": "boolean", "default": true }
+      }
+    },
+    "segment": {
+      "oneOf": [
+        {
+          "title": "text",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "text" },
+            "value": { "type": "string" }
+          },
+          "required": ["type", "value"]
+        },
+        {
+          "title": "model",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "model" },
+            "format": { "enum": ["name", "id"], "default": "name" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "cwd",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "cwd" },
+            "format": { "enum": ["basename", "full", "tilde"], "default": "tilde" },
+            "maxLen": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "git_branch",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "git_branch" },
+            "dirtySuffix": { "type": "string", "default": "*" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "time",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "time" },
+            "format": { "enum": ["HH:mm", "HH:mm:ss", "iso"], "default": "HH:mm" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "tokens",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "tokens" },
+            "which": { "enum": ["input", "output", "total"], "default": "total" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "context",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "context" },
+            "format": { "enum": ["percent", "remaining_percent", "absolute"], "default": "percent" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "cost",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": {
+            "type": { "const": "cost" },
+            "unit": { "enum": ["session"], "default": "session" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "session",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "session" } },
+          "required": ["type"]
+        },
+        {
+          "title": "output_style",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "output_style" } },
+          "required": ["type"]
+        },
+        {
+          "title": "version",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "version" } },
+          "required": ["type"]
+        },
+        {
+          "title": "agent",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "agent" } },
+          "required": ["type"]
+        }
+      ]
+    }
+  }
+}

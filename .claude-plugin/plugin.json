@@ -1,0 +1,10 @@
+{
+  "name": "statusline-plugin",
+  "description": "Configure your Claude Code statusline from inside Claude — schema-driven, zero-dep, no external npx runtime.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Eugene Archibald"
+  },
+  "license": "MIT",
+  "keywords": ["claude-code", "statusline", "plugin"]
+}
