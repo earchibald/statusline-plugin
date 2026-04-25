@@ -80,6 +80,22 @@ function safe(fn, fallback) {
 // while cache_read holds the bulk of the conversation — so summing all three
 // input-side fields is required to match the real fill.
 function num(x) { return typeof x === 'number' ? x : 0; }
+
+// Brief number formatter for context display.
+//   < 1k        -> "873"
+//   < 10k       -> "1.2k"
+//   < 1M        -> "147k"   (no decimal at this magnitude — "147.0k" is noise)
+//   < 10M       -> "1.2M"
+//   else        -> "12M"
+function scaleNum(n) {
+  if (typeof n !== 'number' || !isFinite(n)) return '';
+  const abs = Math.abs(n);
+  if (abs < 1000) return String(Math.round(n));
+  if (abs < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  if (abs < 1_000_000) return Math.round(n / 1000) + 'k';
+  if (abs < 10_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  return Math.round(n / 1_000_000) + 'M';
+}
 function usageScalar(v) {
   if (v == null) return null;
   if (typeof v === 'number') return v;
@@ -172,13 +188,14 @@ const RENDERERS = {
       if (cw.remaining_percentage == null) return '';
       return Math.round(cw.remaining_percentage) + '%';
     }
+    const fmt = (n) => seg.scale === 'raw' ? String(n) : scaleNum(n);
     if (seg.format === 'absolute_percent') {
       if (used == null) return '';
       const tail = pct == null ? '' : ' (' + Math.round(pct) + '%)';
-      return used + '/' + (total || 0) + tail;
+      return fmt(used) + '/' + fmt(total || 0) + tail;
     }
     if (used == null) return '';
-    return used + '/' + (total || 0);
+    return fmt(used) + '/' + fmt(total || 0);
   },
 
   cost: (seg, ctx) => {
@@ -238,4 +255,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar };
+module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, scaleNum };

@@ -107,7 +107,8 @@
           "type": "object",
           "properties": {
             "type": { "const": "context" },
-            "format": { "enum": ["percent", "remaining_percent", "absolute", "absolute_percent"], "default": "percent" }
+            "format": { "enum": ["percent", "remaining_percent", "absolute", "absolute_percent"], "default": "percent" },
+            "scale": { "enum": ["auto", "raw"], "default": "auto", "description": "auto = brief k/M scale (147001 -> 147k); raw = full numbers. Only affects absolute and absolute_percent formats." }
           },
           "required": ["type"]
         },

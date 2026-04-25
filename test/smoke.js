@@ -3,7 +3,7 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { render, RENDERERS, DEFAULT_CONFIG, usageScalar } = require('../bin/statusline.js');
+const { render, RENDERERS, DEFAULT_CONFIG, usageScalar, scaleNum } = require('../bin/statusline.js');
 
 // Mirrors the real Claude Code stdin payload:
 // `context_window.current_usage` is an object, not a scalar.
@@ -66,8 +66,13 @@ check('default config includes context percent', () => {
   assert.ok(out.includes('18%') || out.includes('ctx 18'), 'expected ctx percent, got: ' + out);
 });
 
-check('context absolute_percent renders absolute and percent', () => {
+check('context absolute_percent renders absolute and percent (auto scale)', () => {
   const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
+  assert.equal(out, '37k/200k (18%)');
+});
+
+check('context absolute_percent raw scale uses full numbers', () => {
+  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute_percent', scale: 'raw' }] });
   assert.equal(out, '36800/200000 (18%)');
 });
 
@@ -76,7 +81,7 @@ check('context absolute_percent gracefully omits percent when missing', () => {
     { context_window: { current_usage: 100, context_window_size: 1000 } },
     { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] }
   );
-  assert.equal(out, '100/1000');
+  assert.equal(out, '100/1k');
 });
 
 check('usageScalar: scalar number passes through', () => {
@@ -105,7 +110,7 @@ check('usageScalar: null/undefined return null', () => {
 check('context absolute_percent uses percent×size fallback when current_usage missing', () => {
   const ctx = { context_window: { context_window_size: 1000000, used_percentage: 15 } };
   const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
-  assert.equal(out, '150000/1000000 (15%)');
+  assert.equal(out, '150k/1M (15%)');
 });
 
 check('regression: cached-prompt context fills correctly (was rendering 1/1000000)', () => {
@@ -115,20 +120,50 @@ check('regression: cached-prompt context fills correctly (was rendering 1/100000
     current_usage: { input_tokens: 1, output_tokens: 200, cache_read_input_tokens: 147000, cache_creation_input_tokens: 0 }
   }};
   const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
-  assert.equal(out, '147001/1000000 (15%)');
+  assert.equal(out, '147k/1M (15%)');
+});
+
+check('scaleNum: under 1k stays raw', () => {
+  assert.equal(scaleNum(0), '0');
+  assert.equal(scaleNum(42), '42');
+  assert.equal(scaleNum(999), '999');
+});
+
+check('scaleNum: 1k–10k uses one decimal trimmed', () => {
+  assert.equal(scaleNum(1000), '1k');
+  assert.equal(scaleNum(1234), '1.2k');
+  assert.equal(scaleNum(9999), '10k');
+});
+
+check('scaleNum: 10k–1M uses integer k', () => {
+  assert.equal(scaleNum(36800), '37k');
+  assert.equal(scaleNum(147001), '147k');
+  assert.equal(scaleNum(999000), '999k');
+});
+
+check('scaleNum: 1M+ uses M', () => {
+  assert.equal(scaleNum(1000000), '1M');
+  assert.equal(scaleNum(1234567), '1.2M');
+  assert.equal(scaleNum(12345678), '12M');
+});
+
+check('context absolute (auto scale) on FIXTURE', () => {
+  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute' }] });
+  assert.equal(out, '37k/200k');
+});
+
+check('context absolute raw still works', () => {
+  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute', scale: 'raw' }] });
+  assert.equal(out, '36800/200000');
 });
 
 check('regression: object current_usage no longer renders [object Object]', () => {
   const ctx = { context_window: { current_usage: { input_tokens: 130000, output_tokens: 500 }, context_window_size: 1000000, used_percentage: 13 } };
   const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
-  assert.equal(out, '130000/1000000 (13%)');
+  assert.equal(out, '130k/1M (13%)');
   assert.ok(!out.includes('[object Object]'));
 });
 
-check('context absolute (existing) still works', () => {
-  const out = render(FIXTURE, { separator: '', segments: [{ type: 'context', format: 'absolute' }] });
-  assert.equal(out, '36800/200000');
-});
 
 check('text segment renders literal value', () => {
   const out = render({}, { separator: '', segments: [{ type: 'text', value: 'hello' }] });
