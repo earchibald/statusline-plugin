@@ -35,7 +35,8 @@
         "italic": { "type": "boolean" },
         "prefix": { "type": "string" },
         "suffix": { "type": "string" },
-        "hideWhenEmpty": { "type": "boolean", "default": true }
+        "hideWhenEmpty": { "type": "boolean", "default": true },
+        "joinPrev": { "type": "boolean", "default": false, "description": "When true, no separator is inserted before this segment — it concatenates directly to the previous visible segment." }
       }
     },
     "segment": {
@@ -148,6 +149,13 @@
           "allOf": [{ "$ref": "#/definitions/common" }],
           "type": "object",
           "properties": { "type": { "const": "agent" } },
+          "required": ["type"]
+        },
+        {
+          "title": "effort",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "effort" } },
           "required": ["type"]
         }
       ]

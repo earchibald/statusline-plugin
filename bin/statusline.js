@@ -239,7 +239,9 @@ const RENDERERS = {
 
   version: (_seg, ctx) => ctx.version || '',
 
-  agent: (_seg, ctx) => (ctx.agent && (ctx.agent.name || ctx.agent.id)) || ''
+  agent: (_seg, ctx) => (ctx.agent && (ctx.agent.name || ctx.agent.id)) || '',
+
+  effort: (_seg, ctx) => (ctx.effort && (ctx.effort.level || ctx.effort.value)) || ''
 };
 
 function colorize(text, seg) {
@@ -263,10 +265,15 @@ function renderSegment(seg, ctx) {
 
 function render(ctx, cfg) {
   const sep = cfg.separator == null ? ' | ' : cfg.separator;
-  return (cfg.segments || [])
-    .map((s) => renderSegment(s, ctx))
-    .filter(Boolean)
-    .join(sep);
+  const visible = (cfg.segments || [])
+    .map((seg) => ({ seg, text: renderSegment(seg, ctx) }))
+    .filter((p) => p.text);
+  let out = '';
+  for (let i = 0; i < visible.length; i++) {
+    if (i === 0 || visible[i].seg.joinPrev) out += visible[i].text;
+    else out += sep + visible[i].text;
+  }
+  return out;
 }
 
 async function main() {

@@ -53,6 +53,7 @@ Every segment has a `type` and shares these optional common fields:
 | `prefix`        | string  | `""`    | Rendered before the value (e.g. `"⎇ "`). |
 | `suffix`        | string  | `""`    | Rendered after the value. |
 | `hideWhenEmpty` | boolean | true    | Drop the segment entirely if the value resolves to empty. |
+| `joinPrev`      | boolean | false   | When true, no separator is inserted before this segment — it concatenates directly to the previous visible segment. Use for tight clusters like `Opus 4.7 [high]`. |
 
 ### Segment types
 
@@ -70,6 +71,7 @@ Every segment has a `type` and shares these optional common fields:
 | `output_style`  | —                                                        | active output style name |
 | `version`       | —                                                        | Claude Code version |
 | `agent`         | —                                                        | active subagent name (empty in main session) |
+| `effort`        | —                                                        | thinking-effort level (`low` / `medium` / `high`) when set |
 
 Unknown types render empty (forward-compat) — keep configs valid against the schema above.
 
@@ -103,6 +105,12 @@ Be additive when the user's request is ambiguous: ask which slot the new segment
 **"Show context usage as a percentage."**
 ```json
 { "type": "context", "format": "percent", "color": "yellow", "prefix": "ctx " }
+```
+
+**"Show effort right after the model with no separator" — e.g. `Opus 4.7 [high]`.**
+Add an `effort` segment with `joinPrev: true`, plus a leading-space prefix and bracket suffix:
+```json
+{ "type": "effort", "joinPrev": true, "prefix": " [", "suffix": "]" }
 ```
 
 **"Show a brief cwd" — abbreviates parents, keeps the last folder full.**

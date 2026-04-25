@@ -245,10 +245,53 @@ check('color wraps in ANSI escape', () => {
 });
 
 check('renderer set covers schema types', () => {
-  const expected = ['text','model','cwd','git_branch','time','tokens','context','cost','session','output_style','version','agent'];
+  const expected = ['text','model','cwd','git_branch','time','tokens','context','cost','session','output_style','version','agent','effort'];
   for (const t of expected) {
     assert.ok(typeof RENDERERS[t] === 'function', 'missing renderer: ' + t);
   }
+});
+
+check('effort renders ctx.effort.level', () => {
+  const out = render({ effort: { level: 'high' } }, { separator: '', segments: [{ type: 'effort' }] });
+  assert.equal(out, 'high');
+});
+
+check('effort hides when missing', () => {
+  const out = render({}, { separator: '|', segments: [{ type: 'text', value: 'a' }, { type: 'effort' }, { type: 'text', value: 'b' }] });
+  assert.equal(out, 'a|b');
+});
+
+check('joinPrev concatenates without separator', () => {
+  const out = render({ effort: { level: 'high' } }, { separator: ' | ', segments: [
+    { type: 'text', value: 'Opus 4.7' },
+    { type: 'effort', joinPrev: true, prefix: ' [', suffix: ']' }
+  ]});
+  assert.equal(out, 'Opus 4.7 [high]');
+});
+
+check('joinPrev still uses separator before non-joinPrev neighbours', () => {
+  const out = render({ effort: { level: 'high' } }, { separator: ' | ', segments: [
+    { type: 'text', value: 'Opus 4.7' },
+    { type: 'effort', joinPrev: true, prefix: ' [', suffix: ']' },
+    { type: 'text', value: 'after' }
+  ]});
+  assert.equal(out, 'Opus 4.7 [high] | after');
+});
+
+check('joinPrev on first segment behaves as normal', () => {
+  const out = render({ effort: { level: 'low' } }, { separator: ' | ', segments: [
+    { type: 'effort', joinPrev: true },
+    { type: 'text', value: 'after' }
+  ]});
+  assert.equal(out, 'low | after');
+});
+
+check('joinPrev skipped when previous segment is empty', () => {
+  const out = render({ effort: { level: 'high' } }, { separator: ' | ', segments: [
+    { type: 'cost' },
+    { type: 'effort', joinPrev: true, prefix: '[', suffix: ']' }
+  ]});
+  assert.equal(out, '[high]');
 });
 
 if (failed > 0) {
