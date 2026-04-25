@@ -3,8 +3,10 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { render, RENDERERS, DEFAULT_CONFIG } = require('../bin/statusline.js');
+const { render, RENDERERS, DEFAULT_CONFIG, usageScalar } = require('../bin/statusline.js');
 
+// Mirrors the real Claude Code stdin payload:
+// `context_window.current_usage` is an object, not a scalar.
 const FIXTURE = {
   model: { id: 'claude-opus-4-7', display_name: 'Opus 4.7' },
   workspace: { current_dir: process.cwd() },
@@ -20,7 +22,12 @@ const FIXTURE = {
     context_window_size: 200000,
     used_percentage: 18.4,
     remaining_percentage: 81.6,
-    current_usage: 36800
+    current_usage: {
+      input_tokens: 36800,
+      output_tokens: 1200,
+      cache_read_input_tokens: 50000,
+      cache_creation_input_tokens: 0
+    }
   }
 };
 
@@ -68,6 +75,30 @@ check('context absolute_percent gracefully omits percent when missing', () => {
     { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] }
   );
   assert.equal(out, '100/1000');
+});
+
+check('usageScalar: scalar number passes through', () => {
+  assert.equal(usageScalar(36800), 36800);
+});
+
+check('usageScalar: object with input_tokens uses that field', () => {
+  assert.equal(usageScalar({ input_tokens: 36800, output_tokens: 1200 }), 36800);
+});
+
+check('usageScalar: object without input_tokens sums numeric fields', () => {
+  assert.equal(usageScalar({ a: 100, b: 200, c: 'x' }), 300);
+});
+
+check('usageScalar: null/undefined return null', () => {
+  assert.equal(usageScalar(null), null);
+  assert.equal(usageScalar(undefined), null);
+});
+
+check('regression: object current_usage no longer renders [object Object]', () => {
+  const ctx = { context_window: { current_usage: { input_tokens: 130000, output_tokens: 500 }, context_window_size: 1000000, used_percentage: 13 } };
+  const out = render(ctx, { separator: '', segments: [{ type: 'context', format: 'absolute_percent' }] });
+  assert.equal(out, '130000/1000000 (13%)');
+  assert.ok(!out.includes('[object Object]'));
 });
 
 check('context absolute (existing) still works', () => {

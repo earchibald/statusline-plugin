@@ -73,6 +73,22 @@ function safe(fn, fallback) {
   try { const v = fn(); return v == null ? fallback : v; } catch { return fallback; }
 }
 
+// Real Claude Code stdin sends `context_window.current_usage` as an object
+// ({ input_tokens, output_tokens, cache_read_input_tokens, … }), not a scalar.
+// `input_tokens` is the canonical "what is filling the context window" number.
+function usageScalar(v) {
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object') {
+    if (typeof v.input_tokens === 'number') return v.input_tokens;
+    let sum = 0;
+    let any = false;
+    for (const k in v) if (typeof v[k] === 'number') { sum += v[k]; any = true; }
+    return any ? sum : null;
+  }
+  return null;
+}
+
 let _gitCache = null;
 function gitInfo(cwd) {
   if (_gitCache && _gitCache.cwd === cwd) return _gitCache.value;
@@ -136,7 +152,7 @@ const RENDERERS = {
 
   context: (seg, ctx) => {
     const cw = ctx.context_window || {};
-    const used = cw.current_usage;
+    const used = usageScalar(cw.current_usage);
     const total = cw.context_window_size;
     const pct = cw.used_percentage;
     if (seg.format === 'percent') {
@@ -213,4 +229,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI };
+module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar };
