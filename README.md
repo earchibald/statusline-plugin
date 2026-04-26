@@ -16,17 +16,25 @@ Then run once:
 /statusline-plugin:configure
 ```
 
-Claude reads `~/.claude/settings.json`, adds the `statusLine` stanza if missing, and seeds a default `~/.claude/statusline-plugin/config.json`. The change takes effect on the next prompt.
+Claude installs a stable wrapper at `~/.claude/statusline-plugin/run`, points `~/.claude/settings.json`'s `statusLine.command` at it, and seeds a default `~/.claude/statusline-plugin/config.json`. The wrapper resolves the highest cached plugin version at exec time, so plugin upgrades take effect automatically — no need to re-run `/configure` after every update. The change takes effect on the next prompt.
 
-The manual stanza, if you'd rather paste it yourself:
+The manual stanza, if you'd rather wire it yourself (replace `<HOME>` with your home dir):
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "${CLAUDE_PLUGIN_ROOT}/bin/statusline.js"
+    "command": "<HOME>/.claude/statusline-plugin/run"
   }
 }
+```
+
+…and copy the wrapper into place once:
+
+```bash
+mkdir -p ~/.claude/statusline-plugin
+cp "$(ls -d ~/.claude/plugins/cache/*/statusline-plugin/*/bin/run | sort -V | tail -1)" ~/.claude/statusline-plugin/run
+chmod +x ~/.claude/statusline-plugin/run
 ```
 
 `subagentStatusLine` is wired automatically by the plugin's bundled `settings.json`, so subagent statuslines work out of the box.
@@ -91,9 +99,10 @@ Opus 4.7 | ~/Projects/statusline-plugin | ⎇ main | ctx 18% | $0.42
 
 ```bash
 node test/smoke.js
+node test/run.test.js
 ```
 
-Pipes a fixture stdin payload at `bin/statusline.js` and asserts the rendered output is non-empty and contains the model name.
+`smoke.js` pipes a fixture stdin payload at `bin/statusline.js` and asserts the rendered output is non-empty and contains the model name. `run.test.js` covers the wrapper at `bin/run`: semver resolution, multi-marketplace handling, missing-cache fallback, and an end-to-end exec.
 
 ## License
 

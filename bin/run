@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+'use strict';
+
+// Stable statusline-plugin wrapper.
+// Installed at ~/.claude/statusline-plugin/run by the configure skill and
+// referenced from statusLine.command. On every render it scans the plugin
+// cache, picks the highest installed version, and execs that version's
+// renderer — so plugin upgrades take effect without re-running configure.
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)/;
+
+function parseSemver(v) {
+  const m = SEMVER_RE.exec(v);
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+function compareSemver(a, b) {
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
+// Returns the absolute path to the highest-versioned cached
+// statusline-plugin/<v>/bin/statusline.js found under cacheRoot, or null.
+// cacheRoot is typically ~/.claude/plugins/cache, with shape
+//   <cacheRoot>/<marketplace>/statusline-plugin/<version>/bin/statusline.js
+// We glob across all marketplaces and pick the highest semver overall —
+// one rule, no marketplace tie-breaking.
+function resolveLatest(cacheRoot) {
+  let marketplaces;
+  try { marketplaces = fs.readdirSync(cacheRoot); }
+  catch { return null; }
+
+  const candidates = [];
+  for (const mp of marketplaces) {
+    const pluginDir = path.join(cacheRoot, mp, 'statusline-plugin');
+    let versions;
+    try { versions = fs.readdirSync(pluginDir); }
+    catch { continue; }
+
+    for (const v of versions) {
+      const parsed = parseSemver(v);
+      if (!parsed) continue;
+      const candidate = path.join(pluginDir, v, 'bin', 'statusline.js');
+      try {
+        if (fs.statSync(candidate).isFile()) {
+          candidates.push({ version: parsed, path: candidate });
+        }
+      } catch { /* missing or unreadable — skip */ }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => compareSemver(b.version, a.version));
+  return candidates[0].path;
+}
+
+function defaultCacheRoot() {
+  return path.join(os.homedir(), '.claude', 'plugins', 'cache');
+}
+
+function main() {
+  const target = resolveLatest(defaultCacheRoot());
+  if (!target) {
+    // Don't break the prompt — emit a hint to stderr and exit cleanly so
+    // Claude Code renders an empty statusline rather than an error.
+    process.stderr.write('statusline-plugin: no cached version found in ' + defaultCacheRoot() + '\n');
+    process.exit(0);
+  }
+  const result = spawnSync(process.execPath, [target], { stdio: 'inherit' });
+  process.exit(result.status == null ? 0 : result.status);
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = { resolveLatest, parseSemver, compareSemver, defaultCacheRoot };

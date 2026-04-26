@@ -12,25 +12,38 @@ You configure the Claude Code statusline rendered by the **statusline-plugin** r
 
 The config file is auto-seeded with a sensible default the first time the runtime executes, so you can usually just read it, modify, and write it back.
 
-## First-time install (check once per machine)
+## Install (run on every `/configure`)
 
-Read `~/.claude/settings.json`. If `statusLine` is missing or doesn't point at this plugin, install it:
+The plugin's renderer lives at a version-pinned path inside `~/.claude/plugins/cache/<marketplace>/statusline-plugin/<version>/bin/statusline.js` — that path goes stale on every plugin upgrade. To survive upgrades, `statusLine.command` points at a stable wrapper at `~/.claude/statusline-plugin/run` that resolves the latest cached version at exec time.
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "${CLAUDE_PLUGIN_ROOT}/bin/statusline.js"
-  }
-}
-```
+Do this every time the configure skill runs (it is fast, idempotent, and lets new wrapper logic propagate automatically when the plugin updates):
 
-Notes:
+1. **Install (or refresh) the wrapper:**
+   ```bash
+   mkdir -p ~/.claude/statusline-plugin
+   cp "${CLAUDE_PLUGIN_ROOT}/bin/run" ~/.claude/statusline-plugin/run
+   chmod +x ~/.claude/statusline-plugin/run
+   ```
+   Always re-copy — the user might have a new plugin version with an updated resolver.
 
-- Merge with existing settings — never overwrite the file.
-- `${CLAUDE_PLUGIN_ROOT}` is expanded by Claude Code when the statusline command runs, so this exact string is correct.
-- Optional: `"padding": 2` adds horizontal padding.
-- The change takes effect on the next prompt — no restart needed.
+2. **Point `~/.claude/settings.json` at the wrapper.** Read the file (merge — never overwrite). Resolve the user's absolute home dir (`echo "$HOME"`); settings.json does **not** expand `~`. Then ensure:
+   ```json
+   {
+     "statusLine": {
+       "type": "command",
+       "command": "<HOME>/.claude/statusline-plugin/run"
+     }
+   }
+   ```
+   - **If `statusLine.command` is missing:** install the stanza above.
+   - **If `statusLine.command` matches the old version-pinned shape** (`*/.claude/plugins/cache/*/statusline-plugin/*/bin/statusline.js`): rewrite it to the wrapper path. This is the migration path — once-per-machine, transparent to the user.
+   - **If `statusLine.command` already points at `~/.claude/statusline-plugin/run`:** leave it alone (the wrapper file refresh in step 1 is the only mutation needed).
+   - **If it points at something else** (a hand-rolled command, a different plugin): leave it and tell the user — don't clobber their config.
+
+3. Optional: `"padding": 2` adds horizontal padding.
+4. The change takes effect on the next prompt — no restart needed.
+
+The wrapper itself has zero dependencies and exits cleanly (status 0, stderr hint) if no cached version is found, so a temporarily empty cache won't break the prompt.
 
 ## Schema (authoritative)
 
