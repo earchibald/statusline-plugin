@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const os = require('node:os');
-const { render, RENDERERS, DEFAULT_CONFIG, usageScalar, scaleNum, briefCwd } = require('../bin/statusline.js');
+const { render, RENDERERS, DEFAULT_CONFIG, usageScalar, tokenScalar, scaleNum, briefCwd } = require('../bin/statusline.js');
 
 // Mirrors the real Claude Code stdin payload:
 // `context_window.current_usage` is an object, not a scalar.
@@ -165,6 +165,93 @@ check('regression: object current_usage no longer renders [object Object]', () =
   assert.ok(!out.includes('[object Object]'));
 });
 
+
+check('tokenScalar: scalar number passes through', () => {
+  assert.equal(tokenScalar(50000, 'input'), 50000);
+  assert.equal(tokenScalar(2000, 'output'), 2000);
+});
+
+check('tokenScalar: null/undefined return 0 (preserves || 0 renderer semantics)', () => {
+  assert.equal(tokenScalar(null, 'input'), 0);
+  assert.equal(tokenScalar(undefined, 'output'), 0);
+});
+
+check('tokenScalar: input-side object sums input + cache_read + cache_creation', () => {
+  const v = { input_tokens: 1, cache_read_input_tokens: 147000, cache_creation_input_tokens: 0 };
+  assert.equal(tokenScalar(v, 'input'), 147001);
+});
+
+check('tokenScalar: output-side object prefers scalar output_tokens', () => {
+  assert.equal(tokenScalar({ output_tokens: 250 }, 'output'), 250);
+});
+
+check('tokenScalar: unknown-shape object falls back to numeric sum', () => {
+  assert.equal(tokenScalar({ a: 100, b: 200, c: 'x' }, 'input'), 300);
+  assert.equal(tokenScalar({ a: 5, b: 7 }, 'output'), 12);
+});
+
+check('tokenScalar: non-number, non-object junk returns 0', () => {
+  assert.equal(tokenScalar('garbage', 'input'), 0);
+  assert.equal(tokenScalar(true, 'output'), 0);
+});
+
+check('tokens segment: scalar shape (regression baseline) renders correctly', () => {
+  const ctx = { context_window: { total_input_tokens: 50000, total_output_tokens: 2000 } };
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens', which: 'input' }] }), '50000');
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens', which: 'output' }] }), '2000');
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens' }] }), '52000');
+});
+
+check('tokens segment: object input shape (SL-5 cache pattern) sums correctly', () => {
+  const ctx = { context_window: {
+    total_input_tokens: { input_tokens: 1, cache_read_input_tokens: 147000, cache_creation_input_tokens: 0 },
+    total_output_tokens: 250
+  }};
+  const out = render(ctx, { separator: '', segments: [{ type: 'tokens', which: 'input' }] });
+  assert.equal(out, '147001');
+  assert.ok(!out.includes('[object Object]'));
+});
+
+check('tokens segment: object output shape renders scalar from output_tokens', () => {
+  const ctx = { context_window: {
+    total_input_tokens: 50000,
+    total_output_tokens: { output_tokens: 1234 }
+  }};
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens', which: 'output' }] }), '1234');
+});
+
+check('tokens segment: default which sums object input + scalar output', () => {
+  const ctx = { context_window: {
+    total_input_tokens: { input_tokens: 1, cache_read_input_tokens: 100000, cache_creation_input_tokens: 0 },
+    total_output_tokens: 500
+  }};
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens' }] }), '100501');
+});
+
+check('tokens segment: default which sums scalar input + object output', () => {
+  const ctx = { context_window: {
+    total_input_tokens: 1000,
+    total_output_tokens: { output_tokens: 250 }
+  }};
+  assert.equal(render(ctx, { separator: '', segments: [{ type: 'tokens' }] }), '1250');
+});
+
+check('regression: synthetic object tokens payload never renders [object Object]', () => {
+  const ctx = { context_window: {
+    total_input_tokens: { input_tokens: 1, cache_read_input_tokens: 147000, cache_creation_input_tokens: 50 },
+    total_output_tokens: { output_tokens: 250, cache_read_input_tokens: 0 }
+  }};
+  for (const which of [undefined, 'input', 'output']) {
+    const seg = which ? { type: 'tokens', which } : { type: 'tokens' };
+    const out = render(ctx, { separator: '', segments: [seg] });
+    assert.ok(!out.includes('[object Object]'), 'which=' + which + ' produced: ' + out);
+  }
+});
+
+check('tokens segment: missing context_window renders 0 (preserves prior behavior)', () => {
+  assert.equal(render({}, { separator: '', segments: [{ type: 'tokens' }] }), '0');
+  assert.equal(render({}, { separator: '', segments: [{ type: 'tokens', which: 'input' }] }), '0');
+});
 
 check('text segment renders literal value', () => {
   const out = render({}, { separator: '', segments: [{ type: 'text', value: 'hello' }] });

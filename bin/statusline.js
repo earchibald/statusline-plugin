@@ -144,6 +144,29 @@ function usageScalar(v) {
   return null;
 }
 
+// Defensive coercion for the tokens segment. Mirrors usageScalar's shape
+// tolerance — Claude Code stdin payload shape has evolved twice already
+// (SL-4 / SL-5) on a sibling field, so we don't trust that
+// total_input_tokens / total_output_tokens stay scalar forever. Returns 0
+// (not null) so the renderer's existing `|| 0` semantics are preserved when
+// the field is missing.
+function tokenScalar(v, which) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object') {
+    if (which === 'input') {
+      const fill = num(v.input_tokens) + num(v.cache_read_input_tokens) + num(v.cache_creation_input_tokens);
+      if (fill > 0) return fill;
+    } else if (which === 'output') {
+      if (typeof v.output_tokens === 'number') return v.output_tokens;
+    }
+    let sum = 0;
+    for (const k in v) if (typeof v[k] === 'number') sum += v[k];
+    return sum;
+  }
+  return 0;
+}
+
 let _gitCache = null;
 function gitInfo(cwd) {
   if (_gitCache && _gitCache.cwd === cwd) return _gitCache.value;
@@ -201,9 +224,11 @@ const RENDERERS = {
 
   tokens: (seg, ctx) => {
     const cw = ctx.context_window || {};
-    if (seg.which === 'input') return String(cw.total_input_tokens || 0);
-    if (seg.which === 'output') return String(cw.total_output_tokens || 0);
-    return String((cw.total_input_tokens || 0) + (cw.total_output_tokens || 0));
+    const inp = tokenScalar(cw.total_input_tokens, 'input');
+    const out = tokenScalar(cw.total_output_tokens, 'output');
+    if (seg.which === 'input') return String(inp);
+    if (seg.which === 'output') return String(out);
+    return String(inp + out);
   },
 
   context: (seg, ctx) => {
@@ -297,4 +322,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, scaleNum, briefCwd };
+module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, tokenScalar, scaleNum, briefCwd };
