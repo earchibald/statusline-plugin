@@ -95,6 +95,38 @@ Renders something like:
 Opus 4.7 | ~/Projects/statusline-plugin | ⎇ main | ctx 18% | $0.42
 ```
 
+## Troubleshooting
+
+### `/statusline-plugin:configure` loads stale instructions
+
+Symptom: when Claude opens the `statusline-config` skill (or the `/statusline-plugin:configure` command), the loader header reads something like
+
+```
+Base directory for this skill: …/earchibald-plugins/statusline-plugin/0.1.0/skills/statusline-config
+```
+
+— pointing at a version *older* than the one `~/.claude/plugins/installed_plugins.json` records as installed. As a result Claude follows out-of-date docs (missing newer segment types, old install procedure, etc.) instead of the version you actually have on disk.
+
+Cause: Claude Code's plugin resolver appears to prefer the cached version that contains a `.git/` directory (the one created by the original `/plugin install` clone) over later in-place upgrades, even when the older directory is marked `.orphaned_at`.
+
+Fix — uninstall, then reinstall:
+
+```
+/plugin uninstall statusline-plugin
+/plugin install statusline-plugin@earchibald-plugins
+```
+
+The uninstall flow clears the cached `.git/` clone; the reinstall extracts a fresh snapshot at the latest version. Restart your Claude Code session afterwards so the resolver picks up the new layout.
+
+If you'd rather clean it up by hand, remove the `.git/` directory (and any `.orphaned_at`-marked siblings) from the cache:
+
+```bash
+rm -rf ~/.claude/plugins/cache/earchibald-plugins/statusline-plugin/*/.git
+find ~/.claude/plugins/cache/earchibald-plugins/statusline-plugin -name .orphaned_at -execdir sh -c 'rm -rf "$(pwd)"' \;
+```
+
+(Tracked upstream — this is a Claude Code resolver behavior, not a plugin-level bug we can fix from inside the loaded skill.)
+
 ## Test the runtime
 
 ```bash
