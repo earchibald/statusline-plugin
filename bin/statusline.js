@@ -82,14 +82,17 @@ function safe(fn, fallback) {
 function num(x) { return typeof x === 'number' ? x : 0; }
 
 // Brief cwd formatter: abbreviate every intermediate path component to a
-// single (possibly dot-prefixed) char; keep the last component full.
+// single (possibly dot-prefixed) char; keep the last `depth` components full.
 //   ~/Projects/claude-marketplace                       -> ~/P/claude-marketplace
 //   ~/Projects/tts-me-baby/.claude/worktrees/tmb-28     -> ~/P/t/.c/w/tmb-28
+//   (depth=2)                                            -> ~/P/t/.c/worktrees/tmb-28
 // Rules per intermediate component:
 //   - empty (leading slash) -> empty (preserves leading "/" or "~/")
 //   - "~" -> "~"
 //   - starts with "."       -> "." + first non-dot char (".claude" -> ".c")
 //   - else                  -> first char ("Projects" -> "P")
+// `depth` is clamped to >= 1; when depth >= total path components the
+// abbreviation is a no-op and the tildeified path is returned verbatim.
 function abbrevPart(p) {
   if (!p) return '';
   if (p === '~') return p;
@@ -99,14 +102,17 @@ function abbrevPart(p) {
   }
   return p[0];
 }
-function briefCwd(dir) {
+function briefCwd(dir, depth) {
   const home = os.homedir();
   const tildeified = dir === home ? '~' : (dir.startsWith(home + '/') ? '~' + dir.slice(home.length) : dir);
   const parts = tildeified.split('/');
   if (parts.length <= 1) return tildeified;
-  const last = parts[parts.length - 1];
-  const head = parts.slice(0, -1).map(abbrevPart);
-  return head.join('/') + '/' + last;
+  const d = Math.max(1, typeof depth === 'number' ? Math.floor(depth) : 1);
+  if (d >= parts.length) return tildeified;
+  const tailStart = parts.length - d;
+  const head = parts.slice(0, tailStart).map(abbrevPart);
+  const tail = parts.slice(tailStart).join('/');
+  return head.join('/') + '/' + tail;
 }
 
 // Brief number formatter for context display.
@@ -170,7 +176,7 @@ const RENDERERS = {
     let out;
     if (seg.format === 'basename') out = path.basename(dir);
     else if (seg.format === 'full') out = dir;
-    else if (seg.format === 'brief') out = briefCwd(dir);
+    else if (seg.format === 'brief') out = briefCwd(dir, seg.briefDepth);
     else out = dir.replace(os.homedir(), '~');
     if (seg.maxLen && out.length > seg.maxLen) {
       out = '…' + out.slice(-(seg.maxLen - 1));

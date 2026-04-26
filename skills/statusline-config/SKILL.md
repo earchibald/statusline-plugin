@@ -74,7 +74,7 @@ Every segment has a `type` and shares these optional common fields:
 | --------------- | -------------------------------------------------------- | ------- |
 | `text`          | `value` (string, required)                               | the literal `value` |
 | `model`         | `format`: `name` (default) \| `id`                       | model display name (e.g. `Opus 4.7`) |
-| `cwd`           | `format`: `tilde` (default) \| `basename` \| `full` \| `brief`; `maxLen` | working directory. `brief` abbreviates intermediate components to one char (`~/Projects/tts-me-baby/.claude/worktrees/tmb-28` → `~/P/t/.c/w/tmb-28`); leading dots are preserved (`.claude` → `.c`). `maxLen` truncates from the left with `…`. |
+| `cwd`           | `format`: `tilde` (default) \| `basename` \| `full` \| `brief`; `maxLen`; `briefDepth` (default 1) | working directory. `brief` abbreviates intermediate components to one char (`~/Projects/tts-me-baby/.claude/worktrees/tmb-28` → `~/P/t/.c/w/tmb-28`); leading dots are preserved (`.claude` → `.c`). `briefDepth` keeps the last N components full (default 1 = leaf only); falls through to tilde-style output when ≥ total path components; ignored when `format` ≠ `brief`. `maxLen` truncates from the left with `…`. |
 | `git_branch`    | `dirtySuffix` (default `*`)                              | current branch + suffix when dirty; empty outside a repo |
 | `time`          | `format`: `HH:mm` (default) \| `HH:mm:ss` \| `iso`       | local clock |
 | `tokens`        | `which`: `total` (default) \| `input` \| `output`        | session token counter |
@@ -131,6 +131,12 @@ Add an `effort` segment with `joinPrev: true`, plus a leading-space prefix and b
 { "type": "cwd", "format": "brief", "color": "blue" }
 ```
 Renders `~/P/t/.c/w/tmb-28` for `~/Projects/tts-me-baby/.claude/worktrees/tmb-28`.
+
+**"Brief cwd, but keep the last two folders readable."** Set `briefDepth` to 2:
+```json
+{ "type": "cwd", "format": "brief", "briefDepth": 2, "color": "blue" }
+```
+Renders `~/P/t/.c/worktrees/tmb-28` for the same path. `briefDepth` ≥ total path components falls through to tilde-style output (no abbreviation).
 
 **"Show context as absolute(percent)" — brief by default, e.g. `147k/1M (15%)`.**
 ```json

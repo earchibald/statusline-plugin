@@ -209,6 +209,52 @@ check('cwd brief format via render', () => {
   assert.equal(out, '~/P/t/.c/w/tmb-28');
 });
 
+check('briefCwd: depth=1 matches default behaviour', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir, 1), '~/P/t/.c/w/tmb-28');
+});
+
+check('briefCwd: depth=2 keeps last two components full', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir, 2), '~/P/t/.c/worktrees/tmb-28');
+});
+
+check('briefCwd: depth=3 keeps last three components full', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir, 3), '~/P/t/.claude/worktrees/tmb-28');
+});
+
+check('briefCwd: depth >= total path components falls through to tilde', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  // parts = ['~','Projects','tts-me-baby','.claude','worktrees','tmb-28'] — length 6
+  assert.equal(briefCwd(dir, 6), '~/Projects/tts-me-baby/.claude/worktrees/tmb-28');
+  assert.equal(briefCwd(dir, 100), '~/Projects/tts-me-baby/.claude/worktrees/tmb-28');
+});
+
+check('briefCwd: depth < 1 clamps to 1', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir, 0), '~/P/t/.c/w/tmb-28');
+  assert.equal(briefCwd(dir, -5), '~/P/t/.c/w/tmb-28');
+});
+
+check('briefCwd: depth defaults to 1 when undefined', () => {
+  const dir = os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28';
+  assert.equal(briefCwd(dir), '~/P/t/.c/w/tmb-28');
+  assert.equal(briefCwd(dir, undefined), '~/P/t/.c/w/tmb-28');
+});
+
+check('cwd brief format honours briefDepth=2 via render', () => {
+  const ctx = { workspace: { current_dir: os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28' } };
+  const out = render(ctx, { separator: '', segments: [{ type: 'cwd', format: 'brief', briefDepth: 2 }] });
+  assert.equal(out, '~/P/t/.c/worktrees/tmb-28');
+});
+
+check('cwd briefDepth ignored when format != brief', () => {
+  const ctx = { workspace: { current_dir: os.homedir() + '/Projects/tts-me-baby/.claude/worktrees/tmb-28' } };
+  const out = render(ctx, { separator: '', segments: [{ type: 'cwd', format: 'tilde', briefDepth: 2 }] });
+  assert.equal(out, '~/Projects/tts-me-baby/.claude/worktrees/tmb-28');
+});
+
 check('cwd maxLen truncates from the left', () => {
   const out = render(
     { workspace: { current_dir: '/very/long/path/that/should/be/truncated' } },
