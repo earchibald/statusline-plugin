@@ -7,7 +7,7 @@ description: Configure the Claude Code statusline managed by the statusline-plug
 
 You configure the Claude Code statusline rendered by the **statusline-plugin** runtime. Two artifacts:
 
-1. **`~/.claude/statusline-plugin/config.json`** — schema-driven layout (segments, colors, separator). You edit this.
+1. **`~/.claude/statusline-plugin/config.json`** — schema-driven layout (segments, colors, separator, secondLine). You edit this.
 2. **`~/.claude/settings.json`** — Claude Code's own settings; needs a one-time `statusLine` stanza pointing at the plugin runtime. Check it on first run.
 
 The config file is auto-seeded with a sensible default the first time the runtime executes, so you can usually just read it, modify, and write it back.
@@ -51,9 +51,15 @@ The wrapper itself has zero dependencies and exits cleanly (status 0, stderr hin
 {
   "$schema": "https://raw.githubusercontent.com/earchibald/statusline-plugin/main/schema/config.schema.json",
   "separator": " | ",
-  "segments": [ /* Segment[] */ ]
+  "segments": [ /* Segment[] — first line */ ],
+  "secondLine": {
+    "separator": " ",
+    "segments": [ /* SecondLineSegment[] — optional second line */ ]
+  }
 }
 ```
+
+The `secondLine` key is optional. When present, the wrapper script (`~/.claude/statusline-with-cache.sh`) renders a second line below the main segments using the segment types listed below. The `separator` defaults to `" "` (space).
 
 Every segment has a `type` and shares these optional common fields:
 
@@ -87,6 +93,41 @@ Every segment has a `type` and shares these optional common fields:
 | `effort`        | —                                                        | thinking-effort level (`low` / `medium` / `high`) when set |
 
 Unknown types render empty (forward-compat) — keep configs valid against the schema above.
+
+### Second-line segment types
+
+These are rendered by `~/.claude/statusline-with-cache.sh`, not the plugin runtime. They read the session transcript to display prompt-cache cliff information.
+
+| Type | Fields | Renders |
+| ---- | ------ | ------- |
+| `cache_cliff_1h` | `count` (integer, default `3`) | `1h[Xk@HH:MM, Yk@HH:MM, …, N more]` — next `count` expiry groups of the 1h cache, grouped by minute, soonest first. Appends `N more` when groups exist beyond the shown count. Color: green > 30m, yellow > 10m, red ≤ 10m on the soonest cliff. |
+| `cache_cliff_largest` | `prefix` (string, default `"largest "`) | `<prefix>Xk@HH:MM` — the single group with the most tokens across all live 1h blocks. Independent of `cache_cliff_1h`. Color follows the same thresholds. |
+
+**Methodology:** A "group" is all 1h cache blocks whose `ts + 3600` falls in the same wall-clock minute. Within a group, `ephemeral_1h_input_tokens` values are summed. Only blocks with `ts > now − 3600` are included (live window). `cache_cliff_largest` picks the globally largest group regardless of its position in the expiry order.
+
+**Examples:**
+
+`"1h cache cliff with 3 examples and largest"` →
+```json
+"secondLine": {
+  "segments": [
+    { "type": "cache_cliff_1h", "count": 3 },
+    { "type": "cache_cliff_largest" }
+  ]
+}
+```
+Renders: `1h[15k@23:42, 2k@23:44, 4k@23:45, 27 more] largest 191k@00:17`
+
+`"largest: prefix, then 4 examples"` →
+```json
+"secondLine": {
+  "segments": [
+    { "type": "cache_cliff_largest", "prefix": "largest: " },
+    { "type": "cache_cliff_1h", "count": 4 }
+  ]
+}
+```
+Renders: `largest: 191k@00:17 1h[15k@23:42, 2k@23:44, 4k@23:45, 3k@23:46, 26 more]`
 
 ## Edit recipes
 
