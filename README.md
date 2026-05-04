@@ -71,6 +71,8 @@ Available segment types:
 | `output_style` | Active output style                                 |
 | `version`      | Claude Code version                                 |
 | `agent`        | Active subagent name (empty in main session)        |
+| `effort`       | Thinking-effort level (`low` / `medium` / `high`)   |
+| `claude_ds`    | `[DEEPSEEK]` badge when `CLAUDE_DS=1`; hides otherwise |
 
 Full JSON Schema in [`schema/config.schema.json`](schema/config.schema.json).
 

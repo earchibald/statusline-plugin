@@ -158,6 +158,14 @@
           "type": "object",
           "properties": { "type": { "const": "effort" } },
           "required": ["type"]
+        },
+        {
+          "title": "claude_ds",
+          "allOf": [{ "$ref": "#/definitions/common" }],
+          "type": "object",
+          "properties": { "type": { "const": "claude_ds" } },
+          "description": "When CLAUDE_DS=1, renders [DEEPSEEK] badge. Otherwise renders empty string and hides.",
+          "required": ["type"]
         }
       ]
     }

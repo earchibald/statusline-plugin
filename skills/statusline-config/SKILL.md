@@ -91,6 +91,7 @@ Every segment has a `type` and shares these optional common fields:
 | `version`       | —                                                        | Claude Code version |
 | `agent`         | —                                                        | active subagent name (empty in main session) |
 | `effort`        | —                                                        | thinking-effort level (`low` / `medium` / `high`) when set |
+| `claude_ds`     | —                                                        | `[DEEPSEEK]` badge when `CLAUDE_DS=1`; hides otherwise |
 
 Unknown types render empty (forward-compat) — keep configs valid against the schema above.
 

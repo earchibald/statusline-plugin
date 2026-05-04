@@ -378,7 +378,7 @@ check('color wraps in ANSI escape', () => {
 });
 
 check('renderer set covers schema types', () => {
-  const expected = ['text','model','cwd','git_branch','time','tokens','context','cost','session','output_style','version','agent','effort'];
+  const expected = ['text','model','cwd','git_branch','time','tokens','context','cost','session','output_style','version','agent','effort','claude_ds'];
   for (const t of expected) {
     assert.ok(typeof RENDERERS[t] === 'function', 'missing renderer: ' + t);
   }
@@ -392,6 +392,20 @@ check('effort renders ctx.effort.level', () => {
 check('effort hides when missing', () => {
   const out = render({}, { separator: '|', segments: [{ type: 'text', value: 'a' }, { type: 'effort' }, { type: 'text', value: 'b' }] });
   assert.equal(out, 'a|b');
+});
+
+check('claude_ds renders empty when CLAUDE_DS is not set', () => {
+  delete process.env.CLAUDE_DS;
+  const out = render({}, { separator: '', segments: [{ type: 'claude_ds' }] });
+  assert.equal(out, '');
+});
+
+check('claude_ds renders [DEEPSEEK] when CLAUDE_DS=1', () => {
+  const before = process.env.CLAUDE_DS;
+  process.env.CLAUDE_DS = '1';
+  const out = render({}, { separator: '', segments: [{ type: 'claude_ds' }] });
+  assert.equal(out, '[DEEPSEEK]');
+  if (before) process.env.CLAUDE_DS = before; else delete process.env.CLAUDE_DS;
 });
 
 check('joinPrev concatenates without separator', () => {

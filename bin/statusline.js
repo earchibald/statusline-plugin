@@ -7,6 +7,13 @@ const os = require('node:os');
 const { execSync } = require('node:child_process');
 
 const CONFIG_DIR = path.join(os.homedir(), '.claude', 'statusline-plugin');
+
+// CLAUDE_DS=1 means the claude-ds compat shim is active — requests are
+// routed through api.deepseek.com, not Anthropic's API. No prompt-caching
+// fields are present in the response; cache-related segments should not
+// display caching information. Checked at call time (not module scope) so
+// tests can set the env var before each render call.
+function isClaudeDs() { return process.env.CLAUDE_DS === '1'; }
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG = {
@@ -272,7 +279,9 @@ const RENDERERS = {
 
   agent: (_seg, ctx) => (ctx.agent && (ctx.agent.name || ctx.agent.id)) || '',
 
-  effort: (_seg, ctx) => (ctx.effort && (ctx.effort.level || ctx.effort.value)) || ''
+  effort: (_seg, ctx) => (ctx.effort && (ctx.effort.level || ctx.effort.value)) || '',
+
+  claude_ds: () => isClaudeDs() ? '[DEEPSEEK]' : ''
 };
 
 function colorize(text, seg) {
@@ -322,4 +331,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, tokenScalar, scaleNum, briefCwd };
+module.exports = { render, RENDERERS, DEFAULT_CONFIG, colorize, ANSI, usageScalar, tokenScalar, scaleNum, briefCwd, isClaudeDs };
