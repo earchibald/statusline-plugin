@@ -104,7 +104,7 @@ These are rendered by `~/.claude/statusline-with-cache.sh`, not the plugin runti
 | `cache_cliff_1h` | `count` (integer, default `3`) | `1h[Xk@HH:MM, Yk@HH:MM, …, N more]` — next `count` expiry groups of the 1h cache, grouped by minute, soonest first. Appends `N more` when groups exist beyond the shown count. Color: green > 30m, yellow > 10m, red ≤ 10m on the soonest cliff. |
 | `cache_cliff_largest` | `prefix` (string, default `"largest "`) | `<prefix>Xk@HH:MM` — the single group with the most tokens across all live 1h blocks. Independent of `cache_cliff_1h`. Color follows the same thresholds. |
 
-**Methodology:** A "group" is all 1h cache blocks whose `ts + 3600` falls in the same wall-clock minute. Within a group, `ephemeral_1h_input_tokens` values are summed. Only blocks with `ts > now − 3600` are included (live window). `cache_cliff_largest` picks the globally largest group regardless of its position in the expiry order.
+**Methodology:** A "group" is all 1h cache blocks whose `ts + 3600` falls in the same wall-clock minute. Within a group, the **maximum** `ephemeral_1h_input_tokens` value is taken (the field reports total cache size, not incremental additions — summing would double-count overlapping cache blocks). Only blocks with `ts > now − 3600` are included (live window). `cache_cliff_largest` picks the globally largest group regardless of its position in the expiry order.
 
 **Examples:**
 
